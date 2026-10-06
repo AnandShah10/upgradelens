@@ -2,6 +2,21 @@
 
 All notable changes to the "UpgradeLens" extension will be documented in this file.
 
+## [0.1.2]
+
+### Fixed
+- CI/`npm test` reliability: the `test` script used a `node --test
+  out/test/**/*.test.js` glob that depends on bash's `globstar` option (off
+  by default) to expand recursively - since it didn't expand, the literal,
+  unexpanded string was passed straight to Node, and whether that
+  "happened" to work depended entirely on which Node version received it.
+  This passed locally (Node 22) but failed in CI (Node 18.x/20.x) with
+  "Could not find ... out/test/\*\*/\*.test.js". Replaced with
+  `scripts/runTests.js`, which enumerates compiled test files directly and
+  passes explicit paths to `node --test` - verified identical (235/235
+  passing) under a strict non-interactive bash with `globstar` off, on
+  Node 18.x, 20.x, and 22.x.
+
 ## [0.1.1]
 
 ### Added

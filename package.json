@@ -2,7 +2,7 @@
   "name": "upgradelens",
   "displayName": "UpgradeLens",
   "description": "Simulate the real-world impact of an npm dependency upgrade before you install it: affected files, breaking API changes, deprecations, and a risk-scored migration checklist.",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "publisher": "AnandShah",
   "author": {
     "name": "Anand Shah"
@@ -128,7 +128,7 @@
     "compile": "tsc -p ./ && node ./scripts/copyWebviewAssets.js",
     "watch": "tsc -watch -p ./",
     "pretest": "npm run compile",
-    "test": "node --test out/test/**/*.test.js",
+    "test": "node ./scripts/runTests.js",
     "lint": "eslint src --ext .ts",
     "package": "vsce package"
   },
@@ -153,9 +153,5 @@
   "galleryBanner": {
     "color": "#1E4094",
     "theme": "dark"
-  },
-  "allowScripts": {
-    "@vscode/vsce-sign@2.1.0": true,
-    "keytar@7.9.0": true
   }
 }
