@@ -21,11 +21,11 @@ export interface ProjectManifest {
  * registry. Implemented for npm, yarn, pnpm, and bun (all sharing the npm
  * registry via `NpmRegistryClient`) and for Python/PyPI (`PyPiPackageManager`,
  * backed by `PyPiRegistryClient`) - the interface is the seam any further
- * ecosystem (Rust/Cargo, Go modules, Maven) plugs into without touching
+ * ecosystem plugs into without touching
  * analysis/impact/risk code.
  */
 export interface PackageManager {
-  readonly id: "npm" | "yarn" | "pnpm" | "bun" | "pypi";
+  readonly id: "npm" | "yarn" | "pnpm" | "bun" | "pypi" | "cargo" | "go" | "maven";
 
   /** Parses package.json (and lockfile, if present) in the given project root. */
   readManifest(projectRoot: string): Promise<ProjectManifest>;

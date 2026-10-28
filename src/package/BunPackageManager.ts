@@ -66,14 +66,9 @@ interface BunLockDoc {
  * "name@version" resolution string (Bun's own documented layout) or, in
  * some layouts, an object with a `version` field - both are handled.
  *
- * The older binary `bun.lockb` format is intentionally NOT parsed here:
- * reverse-engineering an undocumented binary format without a reference
- * implementation to validate against risks silently producing wrong
- * version numbers, which is worse than not resolving a version at all.
- * When only `bun.lockb` is present, dependencies are still fully detected
- * from package.json - they just fall back to the declared range instead of
- * a lockfile-exact version (see `DependencyAnalyzer`, which already treats
- * a missing lockfile resolution this way for any package manager).
+ * Binary `bun.lockb` is parsed via `@hyrious/bun.lockb` (full graph as
+ * yarn.lock v1), with a string-pool heuristic fallback for unsupported
+ * format versions. Prefer text `bun.lock` when present.
  */
 export function parseBunLock(content: string): Record<string, string> {
   const resolvedVersions: Record<string, string> = {};
@@ -100,6 +95,60 @@ export function parseBunLock(content: string): Record<string, string> {
     if (!(name in resolvedVersions) && version) resolvedVersions[name] = version;
   }
 
+  return resolvedVersions;
+}
+
+
+/**
+ * Parse bun.lockb via @hyrious/bun.lockb (translated from Bun's Zig
+ * serializer), which emits yarn.lock v1 text. Falls back to a string-pool
+ * heuristic if the binary format version is unsupported.
+ */
+export function parseBunLockb(buffer: Buffer): Record<string, string> {
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires, @typescript-eslint/no-require-imports
+    const { parse } = require("@hyrious/bun.lockb") as { parse: (buf: Uint8Array | ArrayBuffer) => string };
+    const yarnText = parse(new Uint8Array(buffer.buffer, buffer.byteOffset, buffer.byteLength));
+    return parseYarnV1Lock(yarnText);
+  } catch {
+    return parseBunLockbHeuristic(buffer);
+  }
+}
+
+function parseYarnV1Lock(text: string): Record<string, string> {
+  const resolvedVersions: Record<string, string> = {};
+  let currentNames: string[] = [];
+  for (const line of text.split("\n")) {
+    if (line.trim().endsWith(":") && line.includes("@")) {
+      currentNames = [];
+      const nameRe = /"?((?:@[^@",\s]+\/)?[^@",\s]+)@/g;
+      for (const m of line.matchAll(nameRe)) currentNames.push(m[1]);
+      continue;
+    }
+    const ver = /^[ \t]+version\s+"([^"]+)"/.exec(line);
+    if (ver && currentNames.length) {
+      for (const name of currentNames) {
+        if (!(name in resolvedVersions)) resolvedVersions[name] = ver[1];
+      }
+      currentNames = [];
+    }
+  }
+  return resolvedVersions;
+}
+
+function parseBunLockbHeuristic(buffer: Buffer): Record<string, string> {
+  const resolvedVersions: Record<string, string> = {};
+  const text = buffer.toString("latin1");
+  const tokenRe = /(?:@[a-zA-Z0-9][\w.-]*\/)?[a-zA-Z0-9][\w.-]*@\d+\.\d+\.\d+(?:[-+][\w.-]+)?/g;
+  for (const m of text.matchAll(tokenRe)) {
+    const token = m[0];
+    const at = token.lastIndexOf("@");
+    if (at <= 0) continue;
+    const name = token.slice(0, at);
+    const version = token.slice(at + 1);
+    if (!name || name.length < 2 || version.length < 3) continue;
+    if (!(name in resolvedVersions)) resolvedVersions[name] = version;
+  }
   return resolvedVersions;
 }
 
@@ -136,11 +185,13 @@ export class BunPackageManager implements PackageManager {
 
     const binaryLockPath = path.join(projectRoot, "bun.lockb");
     if (fs.existsSync(binaryLockPath)) {
-      // Binary format - not parsed (see module doc comment). Still report
-      // it as present so the UI/report can note that resolution fell back
-      // to declared ranges rather than silently looking like no lockfile
-      // exists at all.
-      return { present: true, fileName: "bun.lockb", resolvedVersions: {} };
+      try {
+        const buf = fs.readFileSync(binaryLockPath);
+        const resolvedVersions = parseBunLockb(buf);
+        return { present: true, fileName: "bun.lockb", resolvedVersions };
+      } catch {
+        return { present: true, fileName: "bun.lockb", resolvedVersions: {} };
+      }
     }
 
     return { present: false, resolvedVersions: {} };

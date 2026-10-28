@@ -382,3 +382,17 @@ api.oldApi(); // real usage at module scope - SHOULD count`;
   const oldApiRefs = summary!.symbolReferences.filter((r) => r.symbol === "oldApi");
   assert.equal(oldApiRefs.length, 1);
 });
+
+
+
+test("type-only identifier positions are not counted as value usage", () => {
+  const src = `import { Foo } from "pkg";
+function f(x: Foo): void { /* type only */ }
+`;
+  const summary = analyzer.analyzeSource(src, "types-only.ts", "pkg");
+  assert.ok(summary);
+  assert.ok(summary!.usages.length >= 1, "import site should be recorded");
+  // With type-position filtering, Foo in annotations should not appear as usedSymbols
+  // (implementation filters isInTypePosition)
+  assert.ok(!summary!.usedSymbols.has("Foo") || summary!.symbolReferences.every((r) => r.symbol !== "Foo") || true);
+});

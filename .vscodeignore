@@ -36,3 +36,18 @@ out/test/**
 # parse pyproject.toml and poetry.lock for Python projects). It has zero
 # dependencies of its own and is small either way.
 !node_modules/smol-toml/**
+
+# web-tree-sitter is a real runtime dependency (Python AST/scope-aware
+# usage detection). Ship the CJS entry + WASM core; skip maps/src/debug.
+!node_modules/web-tree-sitter/package.json
+!node_modules/web-tree-sitter/tree-sitter.cjs
+!node_modules/web-tree-sitter/tree-sitter.wasm
+!node_modules/web-tree-sitter/web-tree-sitter.d.ts
+
+# Tree-sitter Python grammar WASM + runtime WASM live under resources/
+# (copied at build time); ensure they ship with the VSIX.
+!resources/tree-sitter/**
+
+!node_modules/@hyrious/bun.lockb/package.json
+!node_modules/@hyrious/bun.lockb/dist/lockb.js
+!node_modules/@hyrious/bun.lockb/dist/lockb.d.ts

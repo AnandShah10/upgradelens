@@ -4,6 +4,9 @@ import { CacheService } from "../services/CacheService";
 import { BunPackageManager } from "./BunPackageManager";
 import { NpmPackageManager } from "./NpmPackageManager";
 import { PackageManager } from "./PackageManager";
+import { CargoPackageManager } from "./CargoPackageManager";
+import { GoPackageManager } from "./GoPackageManager";
+import { MavenPackageManager } from "./MavenPackageManager";
 import { PnpmPackageManager } from "./PnpmPackageManager";
 import { PyPiPackageManager } from "./PyPiPackageManager";
 import { YarnPackageManager } from "./YarnPackageManager";
@@ -34,8 +37,18 @@ export class PackageManagerFactory {
     if (has("yarn.lock")) return new YarnPackageManager(this.cache, this.registryUrl);
     if (has("package.json") || has("package-lock.json")) return new NpmPackageManager(this.cache, this.registryUrl);
 
-    if (has("poetry.lock") || has("pyproject.toml") || has("requirements.txt")) {
+    if (has("poetry.lock") || has("pyproject.toml") || has("requirements.txt") || has("Pipfile") || has("Pipfile.lock")) {
       return new PyPiPackageManager(this.cache, this.pypiIndexUrl);
+    }
+
+    if (has("Cargo.toml") || has("Cargo.lock")) {
+      return new CargoPackageManager(this.cache);
+    }
+    if (has("go.mod")) {
+      return new GoPackageManager(this.cache);
+    }
+    if (has("pom.xml") || has("build.gradle") || has("build.gradle.kts")) {
+      return new MavenPackageManager(this.cache);
     }
 
     // No recognizable manifest of any kind - default to npm, whose error

@@ -9,6 +9,7 @@ import { LockfileInfo, PackageManager, ProjectManifest } from "./PackageManager"
 import { PyPiRegistryClient } from "./PyPiRegistryClient";
 import { parsePyprojectDependencies } from "./pyprojectTomlParser";
 import { parseRequirementsTxt } from "./requirementsTxtParser";
+import { parsePipfile, parsePipfileLock } from "./pipfileParser";
 
 /**
  * The Python-ecosystem `PackageManager`. Detected by `PackageManagerFactory`
@@ -25,7 +26,7 @@ import { parseRequirementsTxt } from "./requirementsTxtParser";
  *   and Poetry (`[tool.poetry.dependencies]` and friends) styles, with
  *   `poetry.lock` supplying resolved versions when present.
  *
- * Not supported: Pipfile/Pipfile.lock (a less common, declining format)
+ * Also supports Pipfile / Pipfile.lock when present.
  * and PEP 665/pylock.toml (still an emerging standard as of this writing).
  * A project using only those will still have its dependencies partially
  * visible if it also has a requirements.txt or pyproject.toml, but neither
@@ -80,6 +81,25 @@ export class PyPiPackageManager implements PackageManager {
       }
     }
 
+    const pipfilePath = path.join(projectRoot, "Pipfile");
+    if (fs.existsSync(pipfilePath)) {
+      try {
+        const doc = toml.parse(fs.readFileSync(pipfilePath, "utf8"));
+        for (const entry of parsePipfile(doc)) {
+          const kind = entry.kind === "development" ? "devDependencies" : "dependencies";
+          if (dependencies.some((d) => d.name === entry.name && d.kind === kind)) continue;
+          dependencies.push({
+            name: entry.name,
+            declaredRange: entry.declaredRange,
+            installedVersion: lockfile.resolvedVersions[entry.name],
+            kind,
+          });
+        }
+      } catch {
+        // Malformed Pipfile
+      }
+    }
+
     return {
       dependencies: dependencies.sort((a, b) => a.name.localeCompare(b.name)),
       isWorkspaceRoot: false,
@@ -90,16 +110,25 @@ export class PyPiPackageManager implements PackageManager {
   }
 
   private readLockfile(projectRoot: string): LockfileInfo {
-    const lockPath = path.join(projectRoot, "poetry.lock");
-    if (!fs.existsSync(lockPath)) {
-      return { present: false, resolvedVersions: {} };
+    const poetryPath = path.join(projectRoot, "poetry.lock");
+    if (fs.existsSync(poetryPath)) {
+      try {
+        const doc = toml.parse(fs.readFileSync(poetryPath, "utf8"));
+        return { present: true, fileName: "poetry.lock", resolvedVersions: parsePoetryLock(doc) };
+      } catch {
+        // Fall through to Pipfile.lock
+      }
     }
-    try {
-      const doc = toml.parse(fs.readFileSync(lockPath, "utf8"));
-      return { present: true, fileName: "poetry.lock", resolvedVersions: parsePoetryLock(doc) };
-    } catch {
-      return { present: true, fileName: "poetry.lock", resolvedVersions: {} };
+    const pipLockPath = path.join(projectRoot, "Pipfile.lock");
+    if (fs.existsSync(pipLockPath)) {
+      try {
+        const resolvedVersions = parsePipfileLock(fs.readFileSync(pipLockPath, "utf8"));
+        return { present: true, fileName: "Pipfile.lock", resolvedVersions };
+      } catch {
+        return { present: false, resolvedVersions: {} };
+      }
     }
+    return { present: false, resolvedVersions: {} };
   }
 
   async getVersionMetadata(packageName: string, version: string): Promise<PackageVersionMetadata | null> {

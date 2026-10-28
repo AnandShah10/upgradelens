@@ -286,6 +286,81 @@ function isDeclarationOrNonReferencePosition(node: ts.Identifier): boolean {
   if ((ts.isBreakStatement(parent) || ts.isContinueStatement(parent)) && parent.label === node) return true;
   if (ts.isJsxAttribute(parent) && parent.name === node) return true;
 
+  // Type-only positions: a value import used only as a type should not count
+  // as runtime usage (type/value merge and ambient-global false positives).
+  if (isInTypePosition(node)) return true;
+
+  return false;
+}
+
+/**
+ * True when the identifier appears in a pure type position (type annotation,
+ * type query operand already handled via parent, extends clause, etc.).
+ * Excludes value positions that merely *contain* types (e.g. generic call).
+ */
+function isInTypePosition(node: ts.Identifier): boolean {
+  let current: ts.Node | undefined = node;
+  while (current) {
+    const parent: ts.Node | undefined = current.parent;
+    if (!parent) return false;
+
+    // Direct type-node parents
+    if (
+      ts.isTypeReferenceNode(parent) ||
+      ts.isTypeQueryNode(parent) ||
+      ts.isExpressionWithTypeArguments(parent) ||
+      ts.isTypeOperatorNode(parent) ||
+      ts.isIndexedAccessTypeNode(parent) ||
+      ts.isImportTypeNode(parent)
+    ) {
+      return true;
+    }
+
+    // Heritage type arguments / interface extends
+    if (ts.isHeritageClause(parent)) return true;
+
+    // Type parameters, type alias RHS already covered via TypeReference walk
+    if (ts.isTypeParameterDeclaration(parent)) return true;
+    if (ts.isTypeAliasDeclaration(parent) && parent.type === current) return true;
+    if (ts.isAsExpression(parent) && parent.type === current) return true;
+    if (parent.kind === ts.SyntaxKind.TypeAssertionExpression && (parent as ts.TypeAssertion).type === current) return true;
+
+    // SatisfiesExpression (TS 4.9+)
+    if ((parent as { kind?: number }).kind === ts.SyntaxKind.SatisfiesExpression) {
+      const sat = parent as ts.SatisfiesExpression;
+      if (sat.type === current) return true;
+    }
+
+    // Stop at value-expression boundaries — if we hit a call/binary/etc.
+    // without having matched a type parent, this is a value reference.
+    if (
+      ts.isCallExpression(parent) ||
+      ts.isNewExpression(parent) ||
+      ts.isBinaryExpression(parent) ||
+      ts.isPropertyAccessExpression(parent) ||
+      ts.isElementAccessExpression(parent) ||
+      ts.isVariableDeclaration(parent) ||
+      ts.isReturnStatement(parent) ||
+      ts.isExpressionStatement(parent)
+    ) {
+      // Special case: `x` in `const y: Foo = x` — variable declaration name
+      // vs initializer is value; type annotation is type.
+      if (ts.isVariableDeclaration(parent) && parent.type && isAncestor(parent.type, node)) return true;
+      if (ts.isVariableDeclaration(parent) && parent.initializer && isAncestor(parent.initializer, node)) return false;
+      return false;
+    }
+
+    current = parent;
+  }
+  return false;
+}
+
+function isAncestor(root: ts.Node, target: ts.Node): boolean {
+  let n: ts.Node | undefined = target;
+  while (n) {
+    if (n === root) return true;
+    n = n.parent;
+  }
   return false;
 }
 

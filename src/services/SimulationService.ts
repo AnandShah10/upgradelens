@@ -6,6 +6,9 @@ import { DependencyAnalyzer } from "../analysis/DependencyAnalyzer";
 import { enrichPeerDependencyChanges, projectDependencyVersionsFrom } from "../analysis/PeerDependencyAnalyzer";
 import { ImpactEngine } from "../analysis/ImpactEngine";
 import { PythonUsageAnalyzer } from "../analysis/PythonUsageAnalyzer";
+import { PythonReExportResolver } from "../analysis/PythonReExportResolver";
+import { SimpleUsageAnalyzer, SimpleLanguage } from "../analysis/SimpleUsageAnalyzer";
+import { TreeSitterUsageAnalyzer } from "../analysis/TreeSitterUsageAnalyzer";
 import { ReExportResolver } from "../analysis/ReExportResolver";
 import { RiskScorer } from "../analysis/RiskScorer";
 import { classifyChange } from "../analysis/SemverUtil";
@@ -71,6 +74,8 @@ const JS_FAMILY_ECOSYSTEMS = new Set(["npm", "yarn", "pnpm", "bun"]);
 export class SimulationService {
   private readonly usageAnalyzer = new UsageAnalyzer();
   private readonly pythonUsageAnalyzer = new PythonUsageAnalyzer();
+  private readonly simpleUsageAnalyzer = new SimpleUsageAnalyzer();
+  private readonly treeSitterUsageAnalyzer = new TreeSitterUsageAnalyzer();
   private readonly impactEngine = new ImpactEngine();
   private readonly riskScorer = new RiskScorer();
   private readonly apiAnalyzer = new ApiAnalyzer();
@@ -294,12 +299,39 @@ export class SimulationService {
     const summaries: FileUsageSummary[] = [];
 
     if (ecosystemId === "pypi") {
-      // Python has no equivalent of `ReExportResolver`'s barrel-file
-      // resolution in this pass (see PythonUsageAnalyzer's doc comment) -
-      // each file is analyzed independently.
+      // Follow __init__.py / intermediate-module re-exports the same way
+      // JS/TS follows barrel files (bounded, cycle-safe).
+      const pythonReExportResolver = new PythonReExportResolver(fileTextByPath);
       for (const [relativePath, text] of fileTextByPath) {
         if (token.isCancellationRequested) throw new AnalysisCancelledError();
-        const summary = this.pythonUsageAnalyzer.analyzeSource(text, relativePath, packageName);
+        const summary = await this.pythonUsageAnalyzer.analyzeSource(
+          text,
+          relativePath,
+          packageName,
+          pythonReExportResolver
+        );
+        if (summary) summaries.push(summary);
+      }
+      return summaries;
+    }
+
+    const simpleLang: SimpleLanguage | null =
+      ecosystemId === "cargo" ? "rust" : ecosystemId === "go" ? "go" : ecosystemId === "maven" ? "java" : null;
+    if (simpleLang) {
+      for (const [relativePath, text] of fileTextByPath) {
+        if (token.isCancellationRequested) throw new AnalysisCancelledError();
+        // Kotlin (.kt) shares Java import syntax; use java analyzer path.
+        const lang: SimpleLanguage =
+          simpleLang === "java" && relativePath.endsWith(".kt") ? "java" : simpleLang;
+        // Prefer tree-sitter AST/scope analysis; fall back to regex scanner.
+        // (Kotlin has no dedicated WASM grammar here — regex handles .kt imports.)
+        let summary =
+          relativePath.endsWith(".kt")
+            ? this.simpleUsageAnalyzer.analyzeSource(text, relativePath, packageName, "java")
+            : await this.treeSitterUsageAnalyzer.analyzeSource(text, relativePath, packageName, lang);
+        if (!summary) {
+          summary = this.simpleUsageAnalyzer.analyzeSource(text, relativePath, packageName, lang);
+        }
         if (summary) summaries.push(summary);
       }
       return summaries;

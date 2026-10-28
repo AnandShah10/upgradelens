@@ -31,16 +31,30 @@ def helper():
     return os.path.join("a", "b")
 `;
 
-test("django 3.2.0 -> 4.0.0 flags the removed url() shortcut as a real, high-risk finding", async () => {
+
+function skipWithoutTreeSitter(t: { skip: (msg?: string) => void }): boolean {
+  try {
+    require("web-tree-sitter");
+    return false;
+  } catch {
+    t.skip("web-tree-sitter not installed — run npm install");
+    return true;
+  }
+}
+
+test("django 3.2.0 -> 4.0.0 flags the removed url() shortcut as a real, high-risk finding", async (t) => {
+  if (skipWithoutTreeSitter(t)) return;
   const usageAnalyzer = new PythonUsageAnalyzer();
   const impactEngine = new ImpactEngine();
   const riskScorer = new RiskScorer();
   const changeProvider = new KnownChangesProvider();
 
-  const usageByFile = [
-    usageAnalyzer.analyzeSource(URLS_PY, "myapp/urls.py", "django"),
-    usageAnalyzer.analyzeSource(UNRELATED_PY, "myapp/helpers.py", "django"),
-  ].filter((s): s is NonNullable<typeof s> => s !== null);
+  const usageByFile = (
+    await Promise.all([
+      usageAnalyzer.analyzeSource(URLS_PY, "myapp/urls.py", "django"),
+      usageAnalyzer.analyzeSource(UNRELATED_PY, "myapp/helpers.py", "django"),
+    ])
+  ).filter((s): s is NonNullable<typeof s> => s !== null);
 
   // Only urls.py actually imports/uses django - helpers.py shouldn't appear at all.
   assert.equal(usageByFile.length, 1);
@@ -61,14 +75,15 @@ test("django 3.2.0 -> 4.0.0 flags the removed url() shortcut as a real, high-ris
   assert.ok(risk.level === "high" || risk.level === "critical", `expected high/critical risk, got ${risk.level}`);
 });
 
-test("a Django upgrade that doesn't cross the url() removal boundary produces no findings for it", async () => {
+test("a Django upgrade that doesn't cross the url() removal boundary produces no findings for it", async (t) => {
+  if (skipWithoutTreeSitter(t)) return;
   const usageAnalyzer = new PythonUsageAnalyzer();
   const impactEngine = new ImpactEngine();
   const changeProvider = new KnownChangesProvider();
 
-  const usageByFile = [usageAnalyzer.analyzeSource(URLS_PY, "myapp/urls.py", "django")].filter(
-    (s): s is NonNullable<typeof s> => s !== null
-  );
+  const usageByFile = (
+    await Promise.all([usageAnalyzer.analyzeSource(URLS_PY, "myapp/urls.py", "django")])
+  ).filter((s): s is NonNullable<typeof s> => s !== null);
 
   const changes = await changeProvider.getChanges("django", "4.0.0", "4.2.0"); // already past the 4.0 removal
   const findings = impactEngine.correlate(changes, usageByFile);

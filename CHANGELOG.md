@@ -2,6 +2,84 @@
 
 All notable changes to the "UpgradeLens" extension will be documented in this file.
 
+## [0.1.7]
+
+### Fixed / polish
+- Removed leftover `PythonUsageAnalyzer.ts.bak`.
+- Clarified `SimpleUsageAnalyzer` as regex **fallback** (tree-sitter owns shadowing).
+- Marketplace description and keywords now cover all ecosystems, not only npm.
+- **Cargo workspaces** (`[workspace].members`, including `crates/*` globs).
+- **Go workspaces** (`go.work` + multi-module `go.sum` merge).
+- **Maven multi-module** aggregation via `<modules>`.
+- Kotlin (`.kt`) uses the Java import scanner path explicitly.
+- Unit tests for tree-sitter usage, Cargo/Go/Maven managers, type-position filtering.
+
+### Notes
+- Tree-sitter WASM grammars (~2.3MB total) load **lazily on first analysis**
+  of that language; they are not parsed at extension activation.
+
+## [0.1.6]
+
+### Added
+- **Full `bun.lockb` parsing** via `@hyrious/bun.lockb` (Bun Zig serializer → yarn.lock v1), with heuristic fallback.
+- **Type-position filtering** in JS/TS usage analysis: identifiers used only as types no longer count as runtime usage (reduces ambient-global / type-value-merge false positives).
+- **Static `__getattr__` re-export detection** for Python (PEP 562 patterns without executing code).
+- **Tree-sitter AST/scope analysis for Rust, Go, and Java** (WASM grammars under `resources/tree-sitter/`), with regex fallback.
+- **Gradle version catalogs** (`gradle/libs.versions.toml`) and `libs.xxx` reference resolution.
+
+## [0.1.5]
+
+### Added
+- **Gradle** support (`build.gradle` / `build.gradle.kts`) via the JVM package
+  manager — pure-Gradle projects are detected without a pom.xml.
+- **Best-effort `bun.lockb` version extraction**: scans the binary string pool
+  for `name@version` tokens so lockfile-exact pins are recovered when only the
+  legacy binary lockfile is present (text `bun.lock` still preferred).
+- Stronger **Rust / Go / Java usage detection**: comment/string masking,
+  braced Rust imports, parenthesized Go import blocks, static Java imports.
+
+### Notes
+- Full binary schema parsing for `bun.lockb` is still not claimed; the
+  heuristic is conservative and may miss some transitive pins.
+- Rust/Go/Java still lack lexical scope/shadow analysis.
+- Ambient-global and type/value-merge edge cases still require a type checker.
+
+## [0.1.4]
+
+### Added
+- **Python `__init__.py` re-export tracing** (`PythonReExportResolver`): follows
+  relative and project-local absolute re-exports to third-party packages,
+  with the same depth/cycle bounds as JS/TS barrel resolution.
+- **Pipfile / Pipfile.lock** parsing for Python projects.
+- **Expanded known-breaking-changes database** (rxjs, date-fns, zod, socket.io,
+  redux, react-query, @tanstack/react-query, moment, styled-components,
+  requests, scipy, sqlalchemy, pydantic, fastapi, pillow, scikit-learn).
+- **Rust (Cargo), Go modules, and Maven** package managers: manifest/lock
+  reading, registry metadata, and regex-based usage detection (`SimpleUsageAnalyzer`).
+  These plug into the same impact/risk pipeline as npm and PyPI.
+
+### Notes
+- Binary `bun.lockb` remains unparsed (text `bun.lock` is supported).
+- Ambient-global and type/value-merge edge cases still require a full type
+  checker and are intentionally out of scope for the lexical analyzers.
+- Rust/Go/Java usage detection is regex-based (no full AST/scope analysis yet).
+
+## [0.1.3]
+
+### Changed
+- **Python usage detection is now AST/scope-aware.** `PythonUsageAnalyzer`
+  uses web-tree-sitter plus the official tree-sitter-python WASM grammar
+  (~660KB under `resources/tree-sitter/`) instead of regex/text matching.
+  Real lexical shadowing is handled: a function parameter, for/with target,
+  nested def, except handler, or local assignment that shares a name with
+  an imported binding is no longer miscounted as package usage. `analyzeSource`
+  is async (parser init is lazy and shared across files). SimulationService
+  and the unit tests were updated to match.
+
+### Fixed
+- False-positive usage counts when a local binding shadows an imported name
+  (e.g. `def f(requests): requests.get(...)`).
+
 ## [0.1.2]
 
 ### Fixed

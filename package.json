@@ -1,8 +1,8 @@
 {
   "name": "upgradelens",
   "displayName": "UpgradeLens",
-  "description": "Simulate the real-world impact of an npm dependency upgrade before you install it: affected files, breaking API changes, deprecations, and a risk-scored migration checklist.",
-  "version": "0.1.2",
+  "description": "Simulate the real-world impact of a dependency upgrade before you install it: affected files, breaking API changes, deprecations, and a risk-scored migration checklist. Supports npm/Yarn/pnpm/Bun, Python (pip/Poetry/Pipenv), Rust (Cargo), Go modules, and Maven/Gradle.",
+  "version": "0.1.7",
   "publisher": "AnandShah",
   "author": {
     "name": "Anand Shah"
@@ -27,13 +27,27 @@
     "upgrade",
     "breaking changes",
     "impact analysis",
-    "semver"
+    "semver",
+    "python",
+    "pip",
+    "rust",
+    "cargo",
+    "go",
+    "maven",
+    "gradle",
+    "breaking-changes"
   ],
   "activationEvents": [
     "workspaceContains:package.json",
     "workspaceContains:requirements.txt",
     "workspaceContains:pyproject.toml",
-    "workspaceContains:poetry.lock"
+    "workspaceContains:poetry.lock",
+    "workspaceContains:Pipfile",
+    "workspaceContains:Cargo.toml",
+    "workspaceContains:go.mod",
+    "workspaceContains:pom.xml",
+    "workspaceContains:build.gradle",
+    "workspaceContains:build.gradle.kts"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -55,7 +69,7 @@
       },
       {
         "command": "upgradelens.simulateUpgradeDemo",
-        "title": "UpgradeLens: Run Demo Simulation (demo-package 1.4.0 → 2.0.0)",
+        "title": "UpgradeLens: Run Demo Simulation (demo-package 1.4.0 \u2192 2.0.0)",
         "category": "UpgradeLens"
       }
     ],
@@ -139,12 +153,14 @@
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vscode/vsce": "^3.9.2",
-    "eslint": "^8.57.1"
+    "eslint": "^8.57.1",
+    "typescript": "~5.4.5"
   },
   "dependencies": {
     "js-yaml": "^4.3.2",
     "smol-toml": "^1.8.0",
-    "typescript": "^5.9.3"
+    "web-tree-sitter": "0.25.10",
+    "@hyrious/bun.lockb": "0.0.4"
   },
   "homepage": "https://github.com/AnandShah10/upgradelens#readme",
   "bugs": {

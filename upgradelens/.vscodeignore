@@ -1,0 +1,53 @@
+.vscode/**
+src/**
+.gitignore
+tsconfig.json
+**/*.map
+**/*.ts
+node_modules/**
+out/test/**
+**/.eslintrc*
+**/fixtures/**
+**/*.test.js
+
+# The demo fixture under resources/ ships intentionally as plain source
+# text for the bundled "Run Demo Simulation" command to read at runtime -
+# it is data, not TypeScript to compile, so it must survive vsce's default
+# "**/*.ts" exclusion above. Negations must come after the patterns they
+# override for vsce to respect them.
+!resources/demo-project/**
+
+# js-yaml is a real runtime dependency (used to parse pnpm-lock.yaml), so
+# its compiled JS must ship even though node_modules/** is excluded above.
+# It has zero dependencies of its own, so this stays small either way.
+!node_modules/js-yaml/**
+
+# typescript is a real runtime dependency (used by UsageAnalyzer for real
+# AST/scope-aware parsing, and by ApiAnalyzer/TypeDeclarationDiffer for
+# .d.ts inspection) - but only `require("typescript")`'s actual entry point
+# is needed at runtime, not the ~23MB full package (tsc.js, tsserver.js,
+# typingsInstaller.js, the localized-message folders, or any .d.ts files -
+# none of those are loaded by requiring the module itself). Verified by
+# running the module standalone with only these two files present.
+!node_modules/typescript/package.json
+!node_modules/typescript/lib/typescript.js
+
+# smol-toml is a real runtime dependency (used by PyPiPackageManager to
+# parse pyproject.toml and poetry.lock for Python projects). It has zero
+# dependencies of its own and is small either way.
+!node_modules/smol-toml/**
+
+# web-tree-sitter is a real runtime dependency (Python AST/scope-aware
+# usage detection). Ship the CJS entry + WASM core; skip maps/src/debug.
+!node_modules/web-tree-sitter/package.json
+!node_modules/web-tree-sitter/tree-sitter.cjs
+!node_modules/web-tree-sitter/tree-sitter.wasm
+!node_modules/web-tree-sitter/web-tree-sitter.d.ts
+
+# Tree-sitter Python grammar WASM + runtime WASM live under resources/
+# (copied at build time); ensure they ship with the VSIX.
+!resources/tree-sitter/**
+
+!node_modules/@hyrious/bun.lockb/package.json
+!node_modules/@hyrious/bun.lockb/dist/lockb.js
+!node_modules/@hyrious/bun.lockb/dist/lockb.d.ts

@@ -20,8 +20,11 @@ interface KnownEntry {
  * findings for the packages developers upgrade most often, and is designed
  * to be trivially extended - each entry is independent and additive.
  * Covers npm: react-router-dom, axios, lodash, express, react-dom, vue,
- * webpack, eslint, jest, node-fetch, chalk, uuid, mongoose, next.
- * Covers PyPI: django, flask, numpy, pandas.
+ * webpack, eslint, jest, node-fetch, chalk, uuid, mongoose, next,
+ * rxjs, date-fns, zod, socket.io, redux, react-query, @tanstack/react-query,
+ * moment, styled-components.
+ * Covers PyPI: django, flask, numpy, pandas, requests, scipy, sqlalchemy,
+ * pydantic, fastapi, pillow, scikit-learn.
  */
 const KNOWN_CHANGES: Record<string, KnownEntry[]> = {
   "react-router-dom": [
@@ -283,6 +286,188 @@ const KNOWN_CHANGES: Record<string, KnownEntry[]> = {
         summary: "DataFrame.append() and Series.append() were removed in pandas 2.0.",
         recommendation: "Replace .append(...) calls with pandas.concat([...]).",
         confidence: 0.8,
+      },
+    },
+  ],
+
+  // --- Additional npm packages ------------------------------------------
+  rxjs: [
+    {
+      effectiveMajor: 7,
+      change: {
+        kind: "removed-export",
+        symbol: "toPromise",
+        summary: "Observable.toPromise() was removed in RxJS 7; use firstValueFrom() or lastValueFrom().",
+        recommendation: "Replace .toPromise() with firstValueFrom(obs) or lastValueFrom(obs) from 'rxjs'.",
+        confidence: 0.85,
+      },
+    },
+  ],
+  "date-fns": [
+    {
+      effectiveMajor: 3,
+      change: {
+        kind: "signature-change",
+        summary: "date-fns v3 is ESM-only and several functions changed argument order / option shapes.",
+        recommendation: "Migrate imports to ESM and review the v2→v3 upgrade guide for function signature changes.",
+        confidence: 0.7,
+      },
+    },
+  ],
+  zod: [
+    {
+      effectiveMajor: 3,
+      change: {
+        kind: "removed-export",
+        summary: "Zod 3 refined error-map and refinement APIs; some Zod 2 patterns no longer type-check.",
+        recommendation: "Review custom error maps and .refine() usage against the Zod 3 migration notes.",
+        confidence: 0.5,
+      },
+    },
+  ],
+  "socket.io": [
+    {
+      effectiveMajor: 4,
+      change: {
+        kind: "signature-change",
+        summary: "socket.io v4 changed default CORS behavior and removed some long-deprecated options.",
+        recommendation: "Explicitly configure CORS and review the v3→v4 migration guide.",
+        confidence: 0.65,
+      },
+    },
+  ],
+  redux: [
+    {
+      effectiveMajor: 5,
+      change: {
+        kind: "removed-export",
+        symbol: "createStore",
+        summary: "createStore is no longer the recommended API in Redux 5; configureStore from Redux Toolkit is preferred.",
+        recommendation: "Prefer configureStore from @reduxjs/toolkit; createStore remains available but is discouraged.",
+        confidence: 0.55,
+      },
+    },
+  ],
+  "react-query": [
+    {
+      effectiveMajor: 4,
+      change: {
+        kind: "signature-change",
+        summary: "React Query v4 renamed the package to @tanstack/react-query and adjusted QueryClient defaults.",
+        recommendation: "Migrate to @tanstack/react-query and review breaking default changes in the v4 guide.",
+        confidence: 0.75,
+      },
+    },
+  ],
+  "@tanstack/react-query": [
+    {
+      effectiveMajor: 5,
+      change: {
+        kind: "signature-change",
+        symbol: "useQuery",
+        summary: "TanStack Query v5 made callbacks like onSuccess/onError on useQuery obsolete and changed cache defaults.",
+        recommendation: "Move side effects into useEffect; review the v5 migration guide for callback and cache changes.",
+        confidence: 0.8,
+      },
+    },
+  ],
+  moment: [
+    {
+      effectiveMajor: 3,
+      change: {
+        kind: "deprecated-export",
+        summary: "Moment.js is in maintenance mode; the project recommends Luxon, Day.js, or date-fns for new code.",
+        recommendation: "Plan a migration off Moment for new features; Moment 2.x remains usable but will not gain new features.",
+        confidence: 0.6,
+      },
+    },
+  ],
+  "styled-components": [
+    {
+      effectiveMajor: 6,
+      change: {
+        kind: "engine-requirement-change",
+        summary: "styled-components v6 targets React 18+ and modern StyleSheet managers; some v5 APIs were removed.",
+        recommendation: "Confirm React 18+ and review the v6 release notes for removed StyleSheetManager props.",
+        confidence: 0.65,
+      },
+    },
+  ],
+  // --- Additional Python packages ----------------------------------------
+  requests: [
+    {
+      effectiveMajor: 3,
+      change: {
+        kind: "removed-export",
+        summary: "requests 3.x (when released) is expected to drop Python 2 support and several long-deprecated APIs.",
+        recommendation: "Track the requests changelog for 3.x migration notes before upgrading.",
+        confidence: 0.4,
+      },
+    },
+  ],
+  scipy: [
+    {
+      effectiveMajor: 1,
+      change: {
+        kind: "removed-export",
+        summary: "SciPy 1.x removed many deprecated namespaces (e.g. scipy.misc) across minor releases; 1.11+ continued cleanup.",
+        recommendation: "Replace scipy.misc and other deprecated imports with numpy / scipy.ndimage equivalents.",
+        confidence: 0.55,
+      },
+    },
+  ],
+  sqlalchemy: [
+    {
+      effectiveMajor: 2,
+      change: {
+        kind: "signature-change",
+        summary: "SQLAlchemy 2.0 made the 2.0-style query API the default and removed legacy Query patterns.",
+        recommendation: "Migrate to select()/Session.execute() style queries per the SQLAlchemy 2.0 migration guide.",
+        confidence: 0.8,
+      },
+    },
+  ],
+  pydantic: [
+    {
+      effectiveMajor: 2,
+      change: {
+        kind: "signature-change",
+        summary: "Pydantic v2 rewrote the core in Rust; Config class, validators, and .dict()/.json() APIs changed.",
+        recommendation: "Replace .dict() with .model_dump(), .json() with .model_dump_json(), and update validators to the v2 API.",
+        confidence: 0.85,
+      },
+    },
+  ],
+  fastapi: [
+    {
+      effectiveMajor: 0,
+      change: {
+        kind: "signature-change",
+        summary: "FastAPI tracks Starlette/Pydantic breaking changes closely; major dependency bumps often require code changes.",
+        recommendation: "When upgrading FastAPI across minor versions, review its release notes for Pydantic/Starlette-related breaks.",
+        confidence: 0.45,
+      },
+    },
+  ],
+  pillow: [
+    {
+      effectiveMajor: 10,
+      change: {
+        kind: "removed-export",
+        summary: "Pillow 10.0 removed ANTIALIAS (use Resampling.LANCZOS) and other long-deprecated constants.",
+        recommendation: "Replace Image.ANTIALIAS with Image.Resampling.LANCZOS (or Image.LANCZOS).",
+        confidence: 0.8,
+      },
+    },
+  ],
+  "scikit-learn": [
+    {
+      effectiveMajor: 1,
+      change: {
+        kind: "signature-change",
+        summary: "scikit-learn 1.x removed several deprecated estimators and changed default parameter values.",
+        recommendation: "Review the sklearn changelog for removed estimators and altered defaults before upgrading.",
+        confidence: 0.55,
       },
     },
   ],

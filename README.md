@@ -11,7 +11,7 @@
 **Dependency Impact Simulator for VS Code.** Before you bump a version in
 your project's manifest, UpgradeLens tells you what will probably happen to
 *your* code if you do - for **JavaScript/TypeScript (npm, Yarn, pnpm, Bun)
-and Python (pip, Poetry) projects alike**.
+Python (pip, Poetry, Pipenv), Rust (Cargo), Go modules, Maven, and Gradle projects alike**.
 
 Not "there's a newer version available" - but:
 
@@ -132,9 +132,10 @@ destructured imports, multi-line formatting, real shadow detection across
 nested functions, parameters, blocks, catch clauses, for-loops, and nested
 interface/type/enum declarations, plus cross-file "barrel file" re-export
 resolution including transitive chains, star re-exports, cycle detection,
-and depth limits), regex/text-based usage detection for Python (comment/
-string/docstring/f-string-interpolation masking, namespace member-access
-resolution, PyPI-to-import-name mapping), impact correlation, risk scoring,
+and depth limits), AST/scope-aware usage detection for Python via web-tree-sitter
+(real lexical shadowing across function parameters, nested defs, for/with/
+except targets, comprehensions; namespace member-access resolution;
+PyPI-to-import-name mapping), impact correlation, risk scoring,
 webview message validation, workspace aggregation (against real temp
 directories), peer-dependency conflict enrichment, GitHub release-note and
 CHANGELOG.md parsing, the from-scratch tar/gzip reader including PAX
@@ -161,6 +162,12 @@ npm run package
 
 Requires `vsce` (`npm i -g @vscode/vsce`) - produces a `.vsix` you can
 install via **Extensions: Install from VSIX...**.
+
+## WASM / size
+
+Tree-sitter grammars for Python, Rust, Go, and Java ship under
+`resources/tree-sitter/` (~2.3MB combined). Each grammar is loaded **only
+when that language is analyzed**; activation does not pay the cost up front.
 
 ## Safety
 
@@ -190,7 +197,7 @@ src/
 ├── analysis/
 │   ├── SemverUtil.ts          Version parsing, classification, range satisfaction
 │   ├── UsageAnalyzer.ts       AST/scope-aware import/require/dynamic-import usage detection (JS/TS)
-│   ├── PythonUsageAnalyzer.ts Regex/text-based import/usage detection (Python)
+│   ├── PythonUsageAnalyzer.ts AST/scope-aware import/usage detection (Python, web-tree-sitter)
 │   ├── pythonCommentStringMasker.ts  Comment/string masking for Python (f-string aware)
 │   ├── pythonImportNameMap.ts PyPI package name -> Python import name mapping
 │   ├── ReExportResolver.ts    Cross-file "barrel file" re-export chain resolution (JS/TS)
@@ -303,36 +310,33 @@ it identically, so adding another source never requires touching
   patched variants rather than a plain published version and aren't
   resolved from the lockfile - the same declared-range fallback any
   package manager uses when a lockfile can't supply an exact version.
-- Bun support parses the newer text-based `bun.lock` (JSONC) format. The
-  older binary `bun.lockb` format is intentionally not reverse-engineered
-  without a reference implementation to validate against - it's detected
-  as present, but resolution falls back to the declared range rather than
-  risk silently producing a wrong version number.
-- **Python usage detection (`PythonUsageAnalyzer`) is regex/text-based, not
-  built on a real parser** - unlike JS/TS's `UsageAnalyzer`, there's no
-  lightweight, dependency-free Python parser available the way the
-  `typescript` package itself serves as one for JS/TS (a real one would
-  mean a large, likely native-binding dependency - a materially different
-  cost/risk trade-off than the one accepted for `typescript`). Concretely:
-  comments, strings, and docstrings never register as usage, and a real
-  call inside an f-string interpolation (`f"{old_api()}"`) does - but
-  there is **no real scope/shadow analysis**: `def f(requests):
-  requests.get(...)` (a parameter that happens to share a name with an
-  imported package) would be incorrectly counted as usage, something the
-  JS/TS analyzer's real lexical scope tracking correctly rules out. Python
-  package re-exports (e.g. `from .submodule import x` inside an
-  `__init__.py` "barrel") are also not traced across files the way
-  `ReExportResolver` does for JS/TS.
+- Bun support parses text `bun.lock` (JSONC) and binary `bun.lockb` (via
+  `@hyrious/bun.lockb`, translated from Bun's Zig serializer, with a
+  string-pool heuristic fallback). Prefer text `bun.lock` when both exist.
+- **Python usage detection (`PythonUsageAnalyzer`) is AST/scope-aware** via
+  web-tree-sitter and the official tree-sitter-python WASM grammar (~660KB
+  of runtime files under `resources/tree-sitter/`). Real lexical shadowing
+  is handled the same way as the JS/TS analyzer: a parameter, for/with
+  target, nested def, or local assignment that shares a name with an
+  imported binding is correctly *not* counted as package usage. Comments,
+  strings, and docstrings never register as usage; a real call inside an
+  f-string interpolation still does. Cross-file re-exports through
+  `__init__.py` (and intermediate modules) are followed via
+  `PythonReExportResolver`, with the same depth/cycle bounds as JS/TS
+  barrel resolution. Static PEP 562 `__getattr__` patterns that forward
+  to a third-party package are detected without executing Python.
+  **Remaining limits:** fully dynamic `__getattr__` bodies still cannot
+  be resolved; true ambient globals still need a type checker.
 - PyPI package names that don't match their Python import name are resolved
   via a small curated table (`Pillow` -> `PIL`, `beautifulsoup4` -> `bs4`,
   etc.) plus a normalization fallback (hyphens/dots to underscores, which
   correctly handles the majority of "ordinary" packages with no exception
   needed) - not a lookup against the package's real distributed file list,
   so an unusual mismatch outside the curated table could still be missed.
-- Python manifest support covers `requirements.txt` and `pyproject.toml`
+- Python manifest support covers `requirements.txt`, `pyproject.toml`
   (both PEP 621 native and Poetry styles, with `poetry.lock` for resolved
-  versions) - not Pipfile/Pipfile.lock (a less common, declining format) or
-  the still-emerging PEP 665/pylock.toml standard.
+  versions), and **Pipfile / Pipfile.lock**. The still-emerging PEP 665 /
+  pylock.toml standard is not parsed yet.
 
 ## Contributing
 

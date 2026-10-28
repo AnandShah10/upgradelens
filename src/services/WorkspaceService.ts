@@ -6,6 +6,9 @@ const SOURCE_GLOBS: Record<string, string> = {
   pnpm: "**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}",
   bun: "**/*.{ts,tsx,js,jsx,mjs,cjs,mts,cts}",
   pypi: "**/*.py",
+  cargo: "**/*.rs",
+  go: "**/*.go",
+  maven: "**/*.{java,kt}",
 };
 const DEFAULT_SOURCE_GLOB = SOURCE_GLOBS.npm;
 

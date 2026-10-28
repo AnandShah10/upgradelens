@@ -1,0 +1,173 @@
+{
+  "name": "upgradelens",
+  "displayName": "UpgradeLens",
+  "description": "Simulate the real-world impact of a dependency upgrade before you install it: affected files, breaking API changes, deprecations, and a risk-scored migration checklist. Supports npm/Yarn/pnpm/Bun, Python (pip/Poetry/Pipenv), Rust (Cargo), Go modules, and Maven/Gradle.",
+  "version": "0.1.7",
+  "publisher": "AnandShah",
+  "author": {
+    "name": "Anand Shah"
+  },
+  "license": "MIT",
+  "icon": "resources/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AnandShah10/upgradelens"
+  },
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=18.0.0"
+  },
+  "categories": [
+    "Other",
+    "Linters"
+  ],
+  "keywords": [
+    "dependencies",
+    "npm",
+    "upgrade",
+    "breaking changes",
+    "impact analysis",
+    "semver",
+    "python",
+    "pip",
+    "rust",
+    "cargo",
+    "go",
+    "maven",
+    "gradle",
+    "breaking-changes"
+  ],
+  "activationEvents": [
+    "workspaceContains:package.json",
+    "workspaceContains:requirements.txt",
+    "workspaceContains:pyproject.toml",
+    "workspaceContains:poetry.lock",
+    "workspaceContains:Pipfile",
+    "workspaceContains:Cargo.toml",
+    "workspaceContains:go.mod",
+    "workspaceContains:pom.xml",
+    "workspaceContains:build.gradle",
+    "workspaceContains:build.gradle.kts"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "upgradelens.simulateUpgrade",
+        "title": "UpgradeLens: Simulate Upgrade",
+        "category": "UpgradeLens"
+      },
+      {
+        "command": "upgradelens.analyzeCurrent",
+        "title": "UpgradeLens: Analyze Current Dependencies",
+        "category": "UpgradeLens"
+      },
+      {
+        "command": "upgradelens.refresh",
+        "title": "UpgradeLens: Refresh Analysis",
+        "category": "UpgradeLens"
+      },
+      {
+        "command": "upgradelens.simulateUpgradeDemo",
+        "title": "UpgradeLens: Run Demo Simulation (demo-package 1.4.0 \u2192 2.0.0)",
+        "category": "UpgradeLens"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "upgradelens.simulateUpgrade",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "upgradelens.analyzeCurrent",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "upgradelens.refresh",
+          "when": "workspaceFolderCount != 0"
+        },
+        {
+          "command": "upgradelens.simulateUpgradeDemo"
+        }
+      ],
+      "explorer/context": [
+        {
+          "command": "upgradelens.simulateUpgrade",
+          "when": "resourceFilename == package.json || resourceFilename == requirements.txt || resourceFilename == pyproject.toml",
+          "group": "upgradelens"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "upgradelens.simulateUpgrade",
+          "when": "resourceFilename == package.json || resourceFilename == requirements.txt || resourceFilename == pyproject.toml",
+          "group": "upgradelens"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "UpgradeLens",
+      "properties": {
+        "upgradeLens.enableChangelogAnalysis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Query the npm registry for release/version metadata when analyzing an upgrade. Disable to force fully offline analysis."
+        },
+        "upgradeLens.enableGitHubReleaseAnalysis": {
+          "type": "boolean",
+          "default": true,
+          "description": "When the package's repository is on GitHub, scan its tagged releases between the two versions for explicitly-flagged breaking changes. Has no effect if Enable Changelog Analysis is disabled."
+        },
+        "upgradeLens.enableTypeAnalysis": {
+          "type": "boolean",
+          "default": true,
+          "description": "Cross-check claims against locally installed TypeScript declarations, and (network permitting) diff the two published versions' declaration files directly."
+        },
+        "upgradeLens.maxFiles": {
+          "type": "number",
+          "default": 5000,
+          "description": "Maximum number of project files to scan for dependency usage in a single analysis."
+        },
+        "upgradeLens.registryUrl": {
+          "type": "string",
+          "default": "https://registry.npmjs.org",
+          "description": "Base URL of the npm registry used to resolve package metadata and versions."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./ && node ./scripts/copyWebviewAssets.js",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile",
+    "test": "node ./scripts/runTests.js",
+    "lint": "eslint src --ext .ts",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.85.0",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vscode/vsce": "^3.9.2",
+    "eslint": "^8.57.1"
+  },
+  "dependencies": {
+    "js-yaml": "^4.3.2",
+    "smol-toml": "^1.8.0",
+    "typescript": "^5.9.3",
+    "web-tree-sitter": "0.25.10",
+    "@hyrious/bun.lockb": "0.0.4"
+  },
+  "homepage": "https://github.com/AnandShah10/upgradelens#readme",
+  "bugs": {
+    "url": "https://github.com/AnandShah10/upgradelens/issues"
+  },
+  "galleryBanner": {
+    "color": "#1E4094",
+    "theme": "dark"
+  }
+}
